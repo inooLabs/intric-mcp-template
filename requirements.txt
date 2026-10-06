@@ -1,4 +1,4 @@
 fastmcp==3.4.4
 python-dotenv>=1.2.1
-PyJWT>=2.10.1
+PyJWT>=2.14.0
 uvicorn>=0.38.0
