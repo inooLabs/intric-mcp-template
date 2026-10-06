@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import JWTVerifier
-from mcp.server.fastmcp import Icon
+from mcp.types import Icon
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -12,13 +12,20 @@ from starlette.responses import JSONResponse, PlainTextResponse
 load_dotenv()
 
 from resources import get_past_weather, tell_a_joke
-from tools import divide_two_numbers
+from tools import convert_temperature, divide_two_numbers, get_usage_guide
 
 ####### API KEY #######
 
+JWT_SECRET = os.getenv("MCP_SERVER_JWT_SECRET")
+if not JWT_SECRET:
+    raise SystemExit(
+        "MCP_SERVER_JWT_SECRET is not set. Copy .env.example to .env and set it (openssl rand -hex 32)."
+    )
+
 # Option 1: HMAC symmetric key verification
+# An empty issuer or audience silently skips that check, so set both in .env.
 verifier = JWTVerifier(
-    public_key=os.getenv("MCP_SERVER_JWT_SECRET"),  # Shared secret (min 32 chars)
+    public_key=JWT_SECRET,  # Shared secret (min 32 chars)
     issuer=os.getenv("MCP_SERVER_JWT_ISSUER", ""),
     audience=os.getenv("MCP_SERVER_JWT_AUDIENCE", ""),
     algorithm="HS256",
@@ -73,7 +80,11 @@ icon = Icon(
     src="https://portal.intric.ai/intric_pwa_logo.png",
 )
 
-INSTRUCTION_STRING = "This is a template server for the Intric MCP client. It is used to demonstrate the capabilities of the Intric MCP client."
+# The first sentence names the domain.
+INSTRUCTION_STRING = (
+    "Arithmetic and temperature-conversion tools. "
+    "ALWAYS call get_usage_guide first: it lists every tool, when to use it, and how errors are reported."
+)
 VERSION = "1.0.0"
 WEBSITE_URL = "https://www.intric.ai"
 
@@ -99,11 +110,14 @@ mcp = FastMCP(
 
 
 # If you are working with a single module, you can use the @mcp.tool decorator.
-# In this example, FastMCP will automatically use the function name (add_two_numbers) as the tool name.
-# The provided docstring will be used as the tool description.
-# An input schema will be generated from the function parameters as well as handle parameter validation and error reporting.
-# The description along with the input schema will be used by the Intric client to represent the tool for the LLM.
-@mcp.tool
+# FastMCP uses the function name (add_two_numbers) as the tool name and the docstring as the description.
+# The input schema is generated from the parameters, and FastMCP validates the arguments for you.
+# The name, description and schema are what the Intric client shows the LLM, so write the docstring for the model.
+#
+# Permissions:
+# In its standard configuration, Intric asks the user before it executes a tool.
+# "requires_permission": False in the meta field skips that. These tools are all read-only, so none of them ask.
+@mcp.tool(meta={"requires_permission": False})
 def add_two_numbers(a: int, b: int) -> int:
     """
     Add two numbers together.
@@ -118,31 +132,12 @@ def add_two_numbers(a: int, b: int) -> int:
     return a + b
 
 
-# When using the @mcp.tool decorator, you can use decorator arguments to override the ones FastMCP infer (as the example above):
-@mcp.tool(
-    name="add_two_numbers_v2",
-    description="Add two numbers together.",
-)
-def addition_implementation(a: int, b: int) -> int:
-    """
-    Internal function description which will be ignored.
-    """
-    return a + b
+# Import tools from other modules.
+mcp.tool(meta={"requires_permission": False})(divide_two_numbers)
+mcp.tool(meta={"requires_permission": False})(convert_temperature)
 
-
-# Permissions:
-# In its standard configuration, Intric will ask the user for permission to execute a tool.
-# However, you can configure tools to be executed without user permission by adding "requires_permission" in the meta field of the tool decorator.
-@mcp.tool(
-    meta={"requires_permission": False},
-)
-def tool_without_permission() -> str:
-    """This tool will be executed without user permission."""
-    return "Hello, from Intric MCP Template Server! (without permission)"
-
-
-# Import tools from other modules:
-mcp.tool()(divide_two_numbers)
+# The usage guide is the tool the instructions tell the model to call first.
+mcp.tool(meta={"requires_permission": False})(get_usage_guide)
 
 
 ####### RESOURCES #######
@@ -262,5 +257,5 @@ async def health_check(request: Request) -> PlainTextResponse:
 ####### RUNNING THE SERVER #######
 # The most simple way to run the server is to use the mcp.run() method.
 # But for more control, you can use the http_app() method to create an ASGI application and then run it with uvicorn.
-# Run with: uvicorn server:app --host 0.0.0.0 --port 8000
+# Run with: uvicorn server:app --port 8000
 app = mcp.http_app(middleware=middleware)

@@ -13,19 +13,46 @@ A template for building Model Context Protocol (MCP) servers that connect seamle
 - **IP Allowlisting**: Restrict server access to specific IP addresses
 - **Permissions**: Control whether tools/resources require user confirmation
 
-## Running the Server
+## Quick start
 
-Start the MCP server with uvicorn:
+Requires Python 3.10 or newer (tested on 3.12 on macOS). The commands are for bash or zsh. On Windows, use `python` instead of `python3`, `venv\Scripts\activate` instead of `source venv/bin/activate`, and `copy` instead of `cp`.
 
 ```bash
-uvicorn server:app --host 0.0.0.0 --port 8000
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-The server will be available at `http://localhost:8000/mcp`.
+Open `.env` and set `MCP_SERVER_JWT_SECRET`. Generate a value with `openssl rand -hex 32` (or `python -c "import secrets; print(secrets.token_hex(32))"`). The server will not start without it.
+
+Generate a token and paste it into the **Api Key** field when you add the server in Intric:
+
+```bash
+python generate_token.py
+```
+
+Then start the server:
+
+```bash
+uvicorn server:app --port 8000
+```
+
+The server is now available at `http://localhost:8000/mcp`.
+
+Run the tests with `pip install -r requirements-dev.txt` and then `pytest`.
+
+A token is tied to the secret, issuer and audience in `.env`. If you change any of them, generate a new token and update the Api Key in Intric.
+
+`/health` is public (Intric uses it to check that the server is up). Keep anything sensitive out of it.
+
+## Building with an AI coding agent
+
+`AGENTS.md` has the rules an AI coding agent should follow when it adds or changes a tool. If your agent does not read it automatically, tell it to read `AGENTS.md` first.
 
 ## Connecting to Intric
 
-Add your exposed server URL in Intric's MCP connections settings. Intric will automatically discover all available tools and resources.
+Add your exposed server URL (ending with `/mcp`) in Intric's MCP connections settings, with the token from the quick start as the Api Key. Intric will automatically discover all available tools and resources.
 
 Tip: Use a service like ngrok to expose an HTTPS URL bound to a local port, then add that URL (ending with `/mcp`) to Intric.
 
@@ -34,11 +61,30 @@ Tip: Use a service like ngrok to expose an HTTPS URL bound to a local port, then
 ### Adding Tools
 
 ```python
+from typing import Any
+
 @mcp.tool
-def your_function_name(param1: str, param2: int) -> str:
-    """Description of what this tool does."""
-    return f"Result: {param1} - {param2}"
+def your_function_name(param1: str, param2: int) -> dict[str, Any]:
+    """
+    What this tool does, in one sentence. Name the one mistake to avoid.
+
+    args:
+        param1: What it is
+        param2: What it is. Must not be negative.
+
+    returns:
+        {"result": ...} on success, {"error": <message>} on failure
+    """
+    if param2 < 0:
+        return {"error": "param2 must not be negative."}
+    return {"result": f"{param1} - {param2}"}
 ```
+
+The docstring is what the model reads to decide when and how to call the tool, so write it for the model.
+
+- Return `{"error": ...}` instead of raising. A raised exception reaches the client as a tool error with the text `Error calling tool '<name>': <exception message>`. Annotate tools that can fail `-> dict[str, Any]`: a `-> float` tool that returns an error dict fails the client's output validation.
+- When a parameter takes one of a few values, type it as `Literal[...]` and list the values in the docstring (see `convert_temperature` in `tools.py`).
+- Keep `get_usage_guide` up to date. `instructions=` tells the model to call it first.
 
 ### Adding Resources
 
@@ -105,8 +151,14 @@ def get_sensitive_data() -> str:
 
 ```
 intric-mcp-template/
-├── server.py         # Main server file with examples
-├── tools.py          # Example tool implementations
-├── resources.py      # Example resource implementations
-├── requirements.txt  # Python dependencies
+├── AGENTS.md            # Rules for AI coding agents
+├── server.py            # Main server file with examples
+├── tools.py             # Example tool implementations
+├── resources.py         # Example resource implementations
+├── generate_token.py    # Prints a token for the Api Key field in Intric
+├── .env.example         # Copy to .env and set the secret
+├── requirements.txt     # Python dependencies
+├── requirements-dev.txt # Adds pytest
+├── pytest.ini           # Test configuration
+└── tests/               # Smoke tests
 ```
