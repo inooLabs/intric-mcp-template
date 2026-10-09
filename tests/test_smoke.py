@@ -3,6 +3,7 @@
 import asyncio
 import datetime
 import os
+import uuid
 
 # Set these before importing `server`: load_dotenv() does not override variables that are already set.
 SECRET = "test-secret-" + "x" * 32
@@ -172,3 +173,22 @@ def test_no_tool_asks_the_model_for_the_request_context():
         for name, prop in tool.inputSchema.get("properties", {}).items():
             leaked = prop.get("description", "").startswith("Context object")
             assert not leaked, f"{tool.name}.{name}: import Context from fastmcp, not mcp.server.fastmcp"
+
+
+# Tools that return knowledge_sources, with arguments for one call. Add yours here.
+CITING_TOOLS = [("define_temperature_unit", {"unit": "celsius"})]
+
+
+@pytest.mark.parametrize("name, arguments", CITING_TOOLS)
+def test_knowledge_sources_are_ones_intric_can_read(name, arguments):
+    result = call_tool(name, arguments)
+    # Intric reads citations only from a dict result, which the client receives as structured content.
+    assert isinstance(result.structured_content, dict), f"{name}: return a dict, not a string or a list"
+    sources = result.structured_content.get("knowledge_sources")
+    assert sources, f"{name}: no knowledge_sources"
+    # Intric drops an entry without a title, with another source_type, or with an id that is not a UUID.
+    for source in sources:
+        assert source.get("title"), source
+        assert source.get("source_type", "url") in ("url", "pdf"), source
+        if "id" in source:
+            uuid.UUID(str(source["id"]))

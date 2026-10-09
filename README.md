@@ -85,6 +85,7 @@ The docstring is what the model reads to decide when and how to call the tool, s
 - Return `{"error": ...}` instead of raising. A raised exception reaches the client as a tool error with the text `Error calling tool '<name>': <exception message>`. Annotate tools that can fail `-> dict[str, Any]`: a `-> float` tool that returns an error dict fails the client's output validation.
 - When a parameter takes one of a few values, type it as `Literal[...]` and list the values in the docstring (see `convert_temperature` in `tools.py`).
 - Keep `get_usage_guide` up to date. `instructions=` tells the model to call it first.
+- Return a dict, and add `knowledge_sources` when the answer comes from a document or page the user can open. What Intric does with the result: [`docs/tool-output/README.md`](docs/tool-output/README.md).
 
 ### Adding Resources
 
