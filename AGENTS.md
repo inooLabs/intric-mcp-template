@@ -13,6 +13,7 @@ Rules for AI coding agents in this repo: an MCP server template for Intric. Read
 - `server.py`: server setup, authentication, registration of tools, resources and prompts.
 - `tools.py`: tool functions. `divide_two_numbers` can fail, `convert_temperature` takes a fixed set of values, `get_usage_guide` explains the server.
 - `tests/test_smoke.py`: when you replace the example tools, replace the tests that name them.
+- `docs/`: how Intric behaves, one topic per folder. The rules below link to them.
 
 ## Rules
 
@@ -25,3 +26,4 @@ Rules for AI coding agents in this repo: an MCP server template for Intric. Read
 7. **Keep authentication on.** Set `MCP_SERVER_JWT_SECRET`, `MCP_SERVER_JWT_ISSUER` and `MCP_SERVER_JWT_AUDIENCE` together: an empty issuer or audience silently turns that check off. Never commit `.env`. `/health` is public, so return nothing sensitive from it. Example: the verifier and `/health` in `server.py`.
 8. **Set permissions per tool.** `meta={"requires_permission": False}` for tools that only read or compute. `True` for a tool that changes something in another system, so Intric asks the user first. Example: the `meta=` registrations in `server.py` (all read-only, so `False`).
 9. **Import `Context` from `fastmcp`.** If a tool needs the request context, use `from fastmcp import Context`. The `Context` from `mcp.server.fastmcp` shows up as a required argument in the tool's input schema.
+10. **Intric keeps its own copy of the tool list.** Adding or removing a tool, or changing a tool's name, parameters or docstring, reaches Intric only after someone clicks **Refresh capabilities** on the server there. After such a change, tell the user to refresh. Details: [`docs/intric-contract/README.md`](docs/intric-contract/README.md).

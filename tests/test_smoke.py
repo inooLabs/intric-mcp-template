@@ -153,3 +153,22 @@ def test_tools_return_results():
     assert call_tool("divide_two_numbers", {"a": 6, "b": 3}).data == {"result": 2.0}
     boiling = call_tool("convert_temperature", {"value": 100, "from_unit": "celsius", "to_unit": "fahrenheit"})
     assert boiling.data == {"value": 212.0, "unit": "fahrenheit"}
+
+
+# Intric contract tests: they check what Intric reads from tools/list.
+
+
+def test_every_tool_sets_requires_permission():
+    tools = list_tools()
+    assert tools
+    for tool in tools.values():
+        value = (tool.meta or {}).get("requires_permission")
+        assert isinstance(value, bool), f'{tool.name}: set meta={{"requires_permission": True or False}}'
+
+
+def test_no_tool_asks_the_model_for_the_request_context():
+    # A Context imported from mcp.server.fastmcp becomes a schema property, whatever the parameter is called.
+    for tool in list_tools().values():
+        for name, prop in tool.inputSchema.get("properties", {}).items():
+            leaked = prop.get("description", "").startswith("Context object")
+            assert not leaked, f"{tool.name}.{name}: import Context from fastmcp, not mcp.server.fastmcp"
