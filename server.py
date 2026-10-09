@@ -12,7 +12,7 @@ from starlette.responses import JSONResponse, PlainTextResponse
 load_dotenv()
 
 from resources import get_past_weather, tell_a_joke
-from tools import convert_temperature, divide_two_numbers, get_usage_guide
+from tools import convert_temperature, define_temperature_unit, divide_two_numbers, get_usage_guide
 
 ####### API KEY #######
 
@@ -30,6 +30,8 @@ verifier = JWTVerifier(
     audience=os.getenv("MCP_SERVER_JWT_AUDIENCE", ""),
     algorithm="HS256",
 )
+
+# Customers' own API keys, or OAuth through your authorization server: see docs/auth/README.md.
 
 # Option 2: JWKS endpoint (for external auth providers like Auth0, Keycloak, etc.)
 # verifier = JWTVerifier(
@@ -135,6 +137,7 @@ def add_two_numbers(a: int, b: int) -> int:
 # Import tools from other modules.
 mcp.tool(meta={"requires_permission": False})(divide_two_numbers)
 mcp.tool(meta={"requires_permission": False})(convert_temperature)
+mcp.tool(meta={"requires_permission": False})(define_temperature_unit)
 
 # The usage guide is the tool the instructions tell the model to call first.
 mcp.tool(meta={"requires_permission": False})(get_usage_guide)
