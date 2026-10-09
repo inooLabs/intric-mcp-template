@@ -31,6 +31,8 @@ verifier = JWTVerifier(
     algorithm="HS256",
 )
 
+# Customers' own API keys, or OAuth through your authorization server: see docs/auth/README.md.
+
 # Option 2: JWKS endpoint (for external auth providers like Auth0, Keycloak, etc.)
 # verifier = JWTVerifier(
 #     jwks_uri="https://your-auth-provider.com/.well-known/jwks.json",

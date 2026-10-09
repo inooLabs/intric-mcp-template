@@ -42,7 +42,7 @@ The server is now available at `http://localhost:8000/mcp`.
 
 Run the tests with `pip install -r requirements-dev.txt` and then `pytest`.
 
-A token is tied to the secret, issuer and audience in `.env`. If you change any of them, generate a new token and update the Api Key in Intric.
+A token is tied to the secret, issuer and audience in `.env`. If you change any of them, generate a new token and update the Api Key in Intric. To let each customer use their own API key for your service, or to log users in with OAuth, see [`docs/auth/README.md`](docs/auth/README.md).
 
 `/health` is public (Intric uses it to check that the server is up). Keep anything sensitive out of it.
 
@@ -157,6 +157,7 @@ intric-mcp-template/
 ├── tools.py             # Example tool implementations
 ├── resources.py         # Example resource implementations
 ├── generate_token.py    # Prints a token for the Api Key field in Intric
+├── auth_examples.py     # Checks keys or tokens against your own API (optional)
 ├── .env.example         # Copy to .env and set the secret
 ├── requirements.txt     # Python dependencies
 ├── requirements-dev.txt # Adds pytest
