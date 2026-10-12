@@ -42,7 +42,7 @@ The server is now available at `http://localhost:8000/mcp`.
 
 Run the tests with `pip install -r requirements-dev.txt` and then `pytest`.
 
-A token is tied to the secret, issuer and audience in `.env`. If you change any of them, generate a new token and update the Api Key in Intric.
+A token is tied to the secret, issuer and audience in `.env`. If you change any of them, generate a new token and update the Api Key in Intric. To let each customer use their own API key for your service, or to log users in with OAuth, see [`docs/auth/README.md`](docs/auth/README.md).
 
 `/health` is public (Intric uses it to check that the server is up). Keep anything sensitive out of it.
 
@@ -52,7 +52,7 @@ A token is tied to the secret, issuer and audience in `.env`. If you change any 
 
 ## Connecting to Intric
 
-Add your exposed server URL (ending with `/mcp`) in Intric's MCP connections settings, with the token from the quick start as the Api Key. Intric will automatically discover all available tools and resources.
+Add your exposed server URL (ending with `/mcp`, no trailing slash) in Intric's MCP connections settings, with the token from the quick start as the Api Key. Intric reads your tools when you add the server and keeps that copy: after you change a tool, click **Refresh capabilities** on the server in Intric. A tenant admin also has to turn the server on and give it a security classification before assistants can use it. Details: [`docs/intric-contract/README.md`](docs/intric-contract/README.md).
 
 Tip: Use a service like ngrok to expose an HTTPS URL bound to a local port, then add that URL (ending with `/mcp`) to Intric.
 
@@ -85,6 +85,7 @@ The docstring is what the model reads to decide when and how to call the tool, s
 - Return `{"error": ...}` instead of raising. A raised exception reaches the client as a tool error with the text `Error calling tool '<name>': <exception message>`. Annotate tools that can fail `-> dict[str, Any]`: a `-> float` tool that returns an error dict fails the client's output validation.
 - When a parameter takes one of a few values, type it as `Literal[...]` and list the values in the docstring (see `convert_temperature` in `tools.py`).
 - Keep `get_usage_guide` up to date. `instructions=` tells the model to call it first.
+- Return a dict, and add `knowledge_sources` when the answer comes from a document or page the user can open. What Intric does with the result: [`docs/tool-output/README.md`](docs/tool-output/README.md).
 
 ### Adding Resources
 
@@ -156,9 +157,11 @@ intric-mcp-template/
 ├── tools.py             # Example tool implementations
 ├── resources.py         # Example resource implementations
 ├── generate_token.py    # Prints a token for the Api Key field in Intric
+├── auth_examples.py     # Checks keys or tokens against your own API (optional)
 ├── .env.example         # Copy to .env and set the secret
 ├── requirements.txt     # Python dependencies
 ├── requirements-dev.txt # Adds pytest
 ├── pytest.ini           # Test configuration
-└── tests/               # Smoke tests
+├── tests/               # Smoke tests
+└── docs/                # How Intric behaves, one topic per folder
 ```

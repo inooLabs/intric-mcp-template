@@ -2,6 +2,22 @@ from typing import Any, Literal
 
 ABSOLUTE_ZERO_C = -273.15
 
+UNIT_DEFINITIONS = {
+    "celsius": {
+        "definition": "One degree Celsius is the same size as one kelvin. 0 °C is 273.15 K.",
+        "url": "https://en.wikipedia.org/wiki/Celsius",
+    },
+    "fahrenheit": {
+        "definition": "One degree Fahrenheit is 5/9 of a kelvin. Water freezes at 32 °F and boils at 212 °F at standard pressure.",
+        "url": "https://en.wikipedia.org/wiki/Fahrenheit",
+    },
+}
+
+
+def make_knowledge_source(title: str, url: str, text: str, source_type: str = "url") -> dict[str, Any]:
+    # Intric shows these as citations. See docs/tool-output/README.md for the fields it reads.
+    return {"title": title, "url": url, "text": text, "source_type": source_type}
+
 
 def get_usage_guide() -> str:
     """
@@ -15,10 +31,12 @@ Tools:
 - add_two_numbers(a, b): add two integers.
 - divide_two_numbers(a, b): divide a by b. Returns {"error": ...} if b is 0.
 - convert_temperature(value, from_unit, to_unit): convert between "celsius" and "fahrenheit".
+- define_temperature_unit(unit): define "celsius" or "fahrenheit", with a source to cite.
 
 Workflow:
 - To halve a sum, call add_two_numbers, then divide_two_numbers with the sum it returns as a and 2 as b.
 - To convert a temperature, call convert_temperature once. Write the unit names exactly as shown above.
+- To explain a unit, call define_temperature_unit and cite the source it returns.
 
 Errors:
 - A call that runs and fails (b is 0, or a temperature below absolute zero) returns {"error": "<what went wrong>"}.
@@ -64,3 +82,21 @@ def convert_temperature(
         return {"error": f"{value} {from_unit} is below absolute zero."}
     result = celsius if to_unit == "celsius" else celsius * 9 / 5 + 32
     return {"value": round(result, 2), "unit": to_unit}
+
+
+def define_temperature_unit(unit: Literal["celsius", "fahrenheit"]) -> dict[str, Any]:
+    """
+    Define the temperature unit "celsius" or "fahrenheit", with a source to cite. Write the unit name exactly like that, in lowercase.
+
+    args:
+        unit: The unit to define: "celsius" or "fahrenheit"
+
+    returns:
+        {"unit": <unit>, "definition": <text>, "knowledge_sources": [<one source>]}
+    """
+    entry = UNIT_DEFINITIONS[unit]
+    return {
+        "unit": unit,
+        "definition": entry["definition"],
+        "knowledge_sources": [make_knowledge_source(unit.capitalize(), entry["url"], entry["definition"])],
+    }

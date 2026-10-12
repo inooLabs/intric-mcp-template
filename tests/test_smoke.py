@@ -3,6 +3,7 @@
 import asyncio
 import datetime
 import os
+import uuid
 
 # Set these before importing `server`: load_dotenv() does not override variables that are already set.
 SECRET = "test-secret-" + "x" * 32
@@ -153,3 +154,41 @@ def test_tools_return_results():
     assert call_tool("divide_two_numbers", {"a": 6, "b": 3}).data == {"result": 2.0}
     boiling = call_tool("convert_temperature", {"value": 100, "from_unit": "celsius", "to_unit": "fahrenheit"})
     assert boiling.data == {"value": 212.0, "unit": "fahrenheit"}
+
+
+# Intric contract tests: they check what Intric reads from tools/list.
+
+
+def test_every_tool_sets_requires_permission():
+    tools = list_tools()
+    assert tools
+    for tool in tools.values():
+        value = (tool.meta or {}).get("requires_permission")
+        assert isinstance(value, bool), f'{tool.name}: set meta={{"requires_permission": True or False}}'
+
+
+def test_no_tool_asks_the_model_for_the_request_context():
+    # A Context imported from mcp.server.fastmcp becomes a schema property, whatever the parameter is called.
+    for tool in list_tools().values():
+        for name, prop in tool.inputSchema.get("properties", {}).items():
+            leaked = prop.get("description", "").startswith("Context object")
+            assert not leaked, f"{tool.name}.{name}: import Context from fastmcp, not mcp.server.fastmcp"
+
+
+# Tools that return knowledge_sources, with arguments for one call. Add yours here.
+CITING_TOOLS = [("define_temperature_unit", {"unit": "celsius"})]
+
+
+@pytest.mark.parametrize("name, arguments", CITING_TOOLS)
+def test_knowledge_sources_are_ones_intric_can_read(name, arguments):
+    result = call_tool(name, arguments)
+    # Intric reads citations only from a dict result, which the client receives as structured content.
+    assert isinstance(result.structured_content, dict), f"{name}: return a dict, not a string or a list"
+    sources = result.structured_content.get("knowledge_sources")
+    assert sources, f"{name}: no knowledge_sources"
+    # Intric drops an entry without a title, with another source_type, or with an id that is not a UUID.
+    for source in sources:
+        assert source.get("title"), source
+        assert source.get("source_type", "url") in ("url", "pdf"), source
+        if "id" in source:
+            uuid.UUID(str(source["id"]))
